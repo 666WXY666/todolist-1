@@ -1,7 +1,6 @@
 package com.byted.camp.todolist.operation.activity;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
@@ -67,7 +66,7 @@ public class DebugActivity extends AppCompatActivity {
         fileWriteBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // TODO 把一段文本写入某个存储区的文件中，再读出来，显示在 fileText 上
+                // DONE 把一段文本写入某个存储区的文件中，再读出来，显示在 fileText 上
                 new Thread(new Runnable() {
                     @Override
                     public void run() {

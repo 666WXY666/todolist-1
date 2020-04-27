@@ -14,7 +14,7 @@ import com.byted.camp.todolist.operation.db.entity.User;
  * @author zhongshan
  * 2020-04-19.
  */
-@Database(entities = {User.class}, version = 1)
+@Database(entities = {User.class}, version = 1, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static final String DATABASE_NAME = "my_app.db";

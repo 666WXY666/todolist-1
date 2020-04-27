@@ -1,8 +1,12 @@
 package com.byted.camp.todolist;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
+import android.provider.BaseColumns;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
@@ -15,12 +19,20 @@ import android.view.MenuItem;
 import android.view.View;
 
 import com.byted.camp.todolist.beans.Note;
+import com.byted.camp.todolist.beans.State;
+import com.byted.camp.todolist.db.TodoContract.TodoEntry;
+import com.byted.camp.todolist.db.TodoDbHelper;
 import com.byted.camp.todolist.operation.activity.DatabaseActivity;
 import com.byted.camp.todolist.operation.activity.DebugActivity;
 import com.byted.camp.todolist.operation.activity.SettingActivity;
 import com.byted.camp.todolist.ui.NoteListAdapter;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -28,6 +40,14 @@ public class MainActivity extends AppCompatActivity {
 
     private RecyclerView recyclerView;
     private NoteListAdapter notesAdapter;
+
+//    private HandlerThread mWorkThread;
+//    private WorkHander mWorkHander;
+
+    private TodoDbHelper dbHelper;
+
+    private static final SimpleDateFormat SIMPLE_DATE_FORMAT =
+            new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss", Locale.ENGLISH);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,17 +79,23 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void updateNote(Note note) {
-                MainActivity.this.updateNode(note);
+                MainActivity.this.updateNote(note);
             }
         });
         recyclerView.setAdapter(notesAdapter);
 
+//        mWorkThread = new HandlerThread("operation_database");
+//        mWorkThread.start();
+//        mWorkHander = new WorkHander(mWorkThread.getLooper());
+        dbHelper = new TodoDbHelper(this);
         notesAdapter.refresh(loadNotesFromDatabase());
+
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        dbHelper.close();
     }
 
     @Override
@@ -108,16 +134,113 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private List<Note> loadNotesFromDatabase() {
-        // TODO 从数据库中查询数据，并转换成 JavaBeans
-        return null;
+        // DONE 从数据库中查询数据，并转换成 JavaBeans
+        List<Note> list = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        String[] projection = {
+                BaseColumns._ID,
+                TodoEntry.COLUMN_NAME_STATE,
+                TodoEntry.COLUMN_NAME_CONTENT,
+                TodoEntry.COLUMN_NAME_DATE
+        };
+
+        String sortOrder =
+                TodoEntry.COLUMN_NAME_DATE + " DESC";
+
+        Cursor cursor = db.query(
+                TodoEntry.TABLE_NAME,
+                projection,
+                null,
+                null,
+                null,
+                null,
+                sortOrder
+        );
+        while (cursor.moveToNext()) {
+            long itemId = cursor.getLong(cursor.getColumnIndexOrThrow(TodoEntry._ID));
+            int state = cursor.getInt(cursor.getColumnIndexOrThrow(TodoEntry.COLUMN_NAME_STATE));
+            String content = cursor.getString(cursor.getColumnIndex(TodoEntry.COLUMN_NAME_CONTENT));
+            try {
+                Date date = SIMPLE_DATE_FORMAT.parse(cursor.getString(cursor.getColumnIndex(TodoEntry.COLUMN_NAME_DATE)));
+                Note note = new Note(itemId);
+                note.setState(State.from(state));
+                note.setContent(content);
+                note.setDate(date);
+                list.add(note);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+        cursor.close();
+        return list;
     }
 
     private void deleteNote(Note note) {
-        // TODO 删除数据
+        // DONE 删除数据
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        String selection = TodoEntry._ID + " = ?";
+        String[] selectionArgs = {String.valueOf(note.id)};
+        db.delete(TodoEntry.TABLE_NAME, selection, selectionArgs);
+
+        notesAdapter.refresh(loadNotesFromDatabase());
     }
 
-    private void updateNode(Note note) {
-        // 更新数据
+    private void updateNote(Note note) {
+        // DONE 更新数据
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        int state = note.getState().intValue;
+        ContentValues values = new ContentValues();
+        values.put(TodoEntry.COLUMN_NAME_STATE, state);
+
+        String selection = TodoEntry._ID + " = ?";
+        String[] selectionArgs = {String.valueOf(note.id)};
+
+        db.update(
+                TodoEntry.TABLE_NAME,
+                values,
+                selection,
+                selectionArgs);
+
+        notesAdapter.refresh(loadNotesFromDatabase());
     }
 
+//    private class WorkHander extends Handler {
+//
+//        // 增加数据
+//        public static final int MSG_ADD_DATA = 1;
+//        // 删除数据
+//        public static final int MSG_DELETE_DATA = 2;
+//        // 修改数据
+//        public static final int MSG_UPDATE_DATA = 3;
+//        // 查询数据
+//        public static final int MSG_QUERY_DATA = 4;
+//
+//
+//        public WorkHander(Looper looper) {
+//            super(looper);
+//        }
+//
+//        @Override
+//        public void handleMessage(Message msg) {
+//            super.handleMessage(msg);
+//            switch (msg.what) {
+//                case MSG_ADD_DATA:
+//
+//                    break;
+//                case MSG_DELETE_DATA:
+//
+//                    break;
+//                case MSG_UPDATE_DATA:
+//
+//                    break;
+//                case MSG_QUERY_DATA:
+//
+//                    break;
+//                default:
+//                    break;
+//            }
+//        }
+//    }
 }
